@@ -7,7 +7,8 @@ metadata <- read.csv("~/Desktop/BISB program/25SP/BENG 203:CSE 283/data/optional
 #    - adjust the file path as needed
 tpm <- read.delim("~/Desktop/BISB program/25SP/BENG 203:CSE 283/data/pnas_tpm_96_nodup.txt",
                   header = FALSE, sep = "\t", stringsAsFactors = FALSE)
-
+readcount <- read.delim("~/Desktop/BISB program/25SP/BENG 203:CSE 283/data/pnas_readcounts_96_nodup.txt",
+                  header = FALSE, sep = "\t", stringsAsFactors = FALSE)
 # First column is gene IDs
 rownames(tpm) <- tpm[,1]
 tpm <- tpm[,-1]
@@ -35,4 +36,8 @@ write.csv(qc, "./2_recurrence.classifier/output/exRNA_detection_frequency_all_ge
 write.csv(qc_filtered, "./2_recurrence.classifier/output/exRNA_detection_frequency_filtered.csv", row.names = FALSE)
 
 log_tpm <- log2(tpm + 1)
+log_tpm_filtered <- log_tpm%>%rownames_to_column("gene_id")%>%filter(gene_id %in% qc_filtered$GeneID)%>%column_to_rownames("gene_id")
+readcount_filtered <- readcount%>%filter(V1 %in% qc_filtered$GeneID)%>%column_to_rownames("V1")
 write.csv(log_tpm, "./2_recurrence.classifier/output/pnas_tpm_96_nodup_normalized.csv", row.names = FALSE)
+write.csv(log_tpm_filtered, "./2_recurrence.classifier/output/pnas_tpm_96_nodup_normalized_filtered.csv", row.names = FALSE)
+write.csv(readcount_filtered, "./2_recurrence.classifier/output/pnas_readcounts_96_nodup_filtered.csv", row.names = FALSE)
