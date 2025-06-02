@@ -6,41 +6,27 @@ library(tidyverse)
 # 1a) Read in log2TPM + 1 matrix
 #     - Assume file has header: first column = gene_id, then one column per sample
 #     - Each row = one gene
-log2tpm_df <- read.csv("./2_recurrence.classifier/output/2_QC/pnas_tpm_96_nodup_normalized_filtered.csv",sep=',',header = T)
+log2tpm_df <- read.table("./2_recurrence.classifier/output/2_QC/pnas_tpm_96_nodup_normalized_filtered.csv",sep=',',header = T,row.names = 1)
 
 # 1b) Convert gene_id column into rownames, then drop it
 #     (so that `expr_mat` is a numeric matrix with rownames = gene IDs)
 expr_mat <- log2tpm_df %>%
-  column_to_rownames(var = "gene_id") %>%
   as.matrix()         # now each row is a gene, each col is a sample
 
 # 1c) Read in metadata: one row per sample, with at least these two columns:
 #       • sampleID    (must match exactly the column names of expr_mat)
 #       • recurrence  (e.g. "R" for recurrence, "N" for non‐recurrence)
-metadata <- read_csv("data/metadata.csv", col_names = TRUE)
+metadata <- read_csv("./data/pnas_patient_info.csv", col_names = TRUE)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) MAKE SURE SAMPLE ORDER MATCHES BETWEEN expr_mat AND metadata
 # ─────────────────────────────────────────────────────────────────────────────
 # 2a) Subset or reorder metadata so that row order = column order of expr_mat
 #     (drop any samples in metadata that aren’t in expr_mat, and vice versa)
-common_samples <- intersect(colnames(expr_mat), metadata$sampleID)
-
-# Subset expression matrix to common samples
-expr_mat <- expr_mat[, common_samples]
-
-# Subset metadata to common samples, then reorder rows to match expr_mat columns
-metadata <- metadata %>%
-  filter(sampleID %in% common_samples) %>%
-  slice(match(common_samples, sampleID))
-
-# At this point, 
-#   colnames(expr_mat)[i] == metadata$sampleID[i]  for all i  
-#   metadata$recurrence is in the same order as the columns of expr_mat
+colnames(expr_mat) <- metadata$sample_id
 
 # Extract a simple grouping vector (“R” vs “N”) in the same order as columns
-group_vec <- metadata$recurrence
-# (If your column is named differently—e.g. “recurStatus”—change above accordingly.)
+group_vec <- metadata$recurStatus
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3) LOOP OVER GENES TO COMPUTE log2FC and p‐VALUE
@@ -92,7 +78,7 @@ de_results <- tibble(
 # ─────────────────────────────────────────────────────────────────────────────
 # 6) OPTIONAL: SAVE TO CSV
 # ─────────────────────────────────────────────────────────────────────────────
-write_csv(de_results, "DE_results_log2TPM_ttest.csv")
+write_csv(de_results, "./2_recurrence.classifier/output/4_RvsN/DE_RvsN_log2TPM_ttest.csv")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 7) QUICK SUMMARY OF OUTPUT
