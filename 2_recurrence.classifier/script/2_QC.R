@@ -32,12 +32,12 @@ min_freq <- 0.1
 qc_filtered <- subset(qc, DetectionFrequency >= min_freq)
 
 # 4b) Write out results
-write.csv(qc, "./2_recurrence.classifier/output/exRNA_detection_frequency_all_genes.csv", row.names = FALSE)
-write.csv(qc_filtered, "./2_recurrence.classifier/output/exRNA_detection_frequency_filtered.csv", row.names = FALSE)
+write.csv(qc, "./2_recurrence.classifier/output/2_QC/exRNA_detection_frequency_all_genes.csv", row.names = T)
+write.csv(qc_filtered, "./2_recurrence.classifier/output/2_QC/exRNA_detection_frequency_filtered.csv", row.names = T)
 
 log_tpm <- log2(tpm + 1)
 log_tpm_filtered <- log_tpm%>%rownames_to_column("gene_id")%>%filter(gene_id %in% qc_filtered$GeneID)%>%column_to_rownames("gene_id")
 readcount_filtered <- readcount%>%filter(V1 %in% qc_filtered$GeneID)%>%column_to_rownames("V1")
-write.csv(log_tpm, "./2_recurrence.classifier/output/pnas_tpm_96_nodup_normalized.csv", row.names = FALSE)
-write.csv(log_tpm_filtered, "./2_recurrence.classifier/output/pnas_tpm_96_nodup_normalized_filtered.csv", row.names = FALSE)
-write.csv(readcount_filtered, "./2_recurrence.classifier/output/pnas_readcounts_96_nodup_filtered.csv", row.names = FALSE)
+write.csv(log_tpm, "./2_recurrence.classifier/output/2_QC/pnas_tpm_96_nodup_normalized.csv", row.names = T)
+write.csv(log_tpm_filtered, "./2_recurrence.classifier/output/2_QC/pnas_tpm_96_nodup_normalized_filtered.csv", row.names = T)
+write.csv(readcount_filtered, "./2_recurrence.classifier/output/2_QC/pnas_readcounts_96_nodup_filtered.csv", row.names = T)

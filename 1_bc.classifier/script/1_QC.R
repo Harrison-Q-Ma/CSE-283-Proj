@@ -28,12 +28,12 @@ min_freq <- 0.1
 qc_filtered <- subset(qc, DetectionFrequency >= min_freq)
 
 # 4b) Write out results
-write.csv(qc, "./1_bc.classifier/output/1_QC/exRNA_detection_frequency_all_genes.csv", row.names = FALSE)
-write.csv(qc_filtered, "./1_bc.classifier/output/1_QC/exRNA_detection_frequency_filtered.csv", row.names = FALSE)
+write.csv(qc, "./1_bc.classifier/output/1_QC/exRNA_detection_frequency_all_genes.csv", row.names = T)
+write.csv(qc_filtered, "./1_bc.classifier/output/1_QC/exRNA_detection_frequency_filtered.csv", row.names = T)
 
 log_tpm <- log2(tpm + 1)
 log_tpm_filtered <- log_tpm%>%rownames_to_column("gene_id")%>%filter(gene_id %in% qc_filtered$GeneID)%>%column_to_rownames("gene_id")
 readcount_filtered <- readcount%>%rownames_to_column("gene_id")%>%filter(gene_id %in% qc_filtered$GeneID)%>%column_to_rownames("gene_id")
-write.csv(log_tpm, "./1_bc.classifier/output/1_QC/pnas_normal_tpm_normalized.csv", row.names = FALSE)
-write.csv(log_tpm_filtered, "./1_bc.classifier/output/1_QC/pnas_normal_tpm_normalized_filtered.csv", row.names = FALSE)
-write.csv(readcount_filtered, "./1_bc.classifier/output/1_QC/pnas_normal_readcounts_filtered.csv", row.names = FALSE)
+write.csv(log_tpm, "./1_bc.classifier/output/1_QC/pnas_normal_tpm_normalized.csv", row.names = T)
+write.csv(log_tpm_filtered, "./1_bc.classifier/output/1_QC/pnas_normal_tpm_normalized_filtered.csv", row.names = T)
+write.csv(readcount_filtered, "./1_bc.classifier/output/1_QC/pnas_normal_readcounts_filtered.csv", row.names = T)
