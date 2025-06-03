@@ -1,57 +1,75 @@
 library(tidyverse)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1) LOAD DATA
+# 1) LOAD DATA: breast cancer vs. normal healthy samples
 # ─────────────────────────────────────────────────────────────────────────────
-# 1a) Read in log2TPM + 1 matrix
-#     - Assume file has header: first column = gene_id, then one column per sample
-#     - Each row = one gene
-log2tpm_df <- read.table("./2_recurrence.classifier/output/2_QC/pnas_tpm_96_nodup_normalized_filtered.csv",sep=',',header = T,row.names = 1)
 
-# 1b) Convert gene_id column into rownames, then drop it
-#     (so that `expr_mat` is a numeric matrix with rownames = gene IDs)
-expr_mat <- log2tpm_df %>%
-  as.matrix()         # now each row is a gene, each col is a sample
+# 1a) Read in log2(TPM + 1) for breast cancer samples
+#     - assume file has header: first column = gene_id, then one column per cancer sample
+log2tpm_cancer <- read.table(
+  "./2_recurrence.classifier/output/2_QC/pnas_tpm_96_nodup_normalized_filtered.csv",
+  sep = ",", header = TRUE, row.names = 1
+) %>%
+  as.matrix()   
 
-# 1c) Read in metadata: one row per sample, with at least these two columns:
-#       • sampleID    (must match exactly the column names of expr_mat)
-#       • recurrence  (e.g. "R" for recurrence, "N" for non‐recurrence)
-metadata <- read_csv("./data/pnas_patient_info.csv", col_names = TRUE)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2) MAKE SURE SAMPLE ORDER MATCHES BETWEEN expr_mat AND metadata
-# ─────────────────────────────────────────────────────────────────────────────
-# 2a) Subset or reorder metadata so that row order = column order of expr_mat
-#     (drop any samples in metadata that aren’t in expr_mat, and vice versa)
-colnames(expr_mat) <- metadata$sample_id
-
-# Extract a simple grouping vector (“R” vs “N”) in the same order as columns
-group_vec <- metadata$recurStatus
+# 1b) Read in log2(TPM + 1) for normal healthy samples
+#     - same format: first column = gene_id, then one column per normal sample
+log2tpm_normal <- read.table(
+  "./1_bc.classifier/output/1_QC/pnas_normal_tpm_normalized_filtered.csv",
+  sep = ",", header = TRUE, row.names = 1
+) %>%
+  as.matrix()   
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3) LOOP OVER GENES TO COMPUTE log2FC and p‐VALUE
+# 2) ALIGN GENE SETS BETWEEN CANCER AND NORMAL
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Find genes present in both matrices
+common_genes <- intersect(rownames(log2tpm_cancer), rownames(log2tpm_normal))
+
+# Subset each matrix to the common genes only, in the same order
+log2tpm_cancer <- log2tpm_cancer[common_genes, , drop = FALSE]
+log2tpm_normal <- log2tpm_normal[common_genes, , drop = FALSE]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3) COMBINE MATRICES AND DEFINE GROUP VECTOR
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Bind columns: first all cancer samples, then all normal samples
+expr_mat <- cbind(
+  log2tpm_cancer,
+  log2tpm_normal
+)
+
+group_vec <- c(
+  rep("Cancer",  ncol(log2tpm_cancer)),
+  rep("Normal",  ncol(log2tpm_normal))
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4) DE ANALYSIS LOOP: log₂ fold-change + t-test p-values
+# ─────────────────────────────────────────────────────────────────────────────
+
 gene_ids <- rownames(expr_mat)
 n_genes  <- length(gene_ids)
 
 # Pre-allocate vectors
-log2FC   <- numeric(n_genes)   # will store mean(R) – mean(N)
-p_value  <- numeric(n_genes)   # will store raw p‐values from t.test
+log2FC  <- numeric(n_genes)   # will store mean(Cancer) – mean(Normal)
+p_value <- numeric(n_genes)   # will store raw p-values from t.test
 
 for (i in seq_len(n_genes)) {
-  # Extract the i‐th gene’s expression across all samples
-  gene_expr <- expr_mat[i, ]    # a numeric vector of length = ncol(expr_mat)
+  # Extract the i-th gene’s log2(TPM+1) across all samples
+  gene_expr <- expr_mat[i, ]     # numeric vector of length = ncol(expr_mat)
   
-  # Split into two groups by recurrence status
-  expr_R <- gene_expr[group_vec == "R"]
-  expr_N <- gene_expr[group_vec == "N"]
+  # Split into two groups by “Cancer” vs “Normal”
+  expr_C <- gene_expr[group_vec == "Cancer"]
+  expr_N <- gene_expr[group_vec == "Normal"]
   
-  # 3a) Compute log2FC = mean_R – mean_N
-  log2FC[i] <- mean(expr_R, na.rm = TRUE) - mean(expr_N, na.rm = TRUE)
+  # 4a) Compute log2FC = mean(Cancer) – mean(Normal)
+  log2FC[i] <- mean(expr_C, na.rm = TRUE) - mean(expr_N, na.rm = TRUE)
   
-  # 3b) Perform two‐sample t‐test (unpaired, equal variance assumed by default)
-  #     We catch warnings or errors (e.g. if a group has constant values).
-  t_test_res <- try(t.test(expr_R, expr_N), silent = TRUE)
+  # 4b) Perform two-sample t-test (unpaired, equal variance assumed)
+  t_test_res <- try(t.test(expr_C, expr_N), silent = TRUE)
   if (inherits(t_test_res, "try-error")) {
     p_value[i] <- NA
   } else {
@@ -60,23 +78,29 @@ for (i in seq_len(n_genes)) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4) ADJUST P-VALUES (BONFERRONI)
+# 5) ADJUST P-VALUES (BONFERRONI)
 # ─────────────────────────────────────────────────────────────────────────────
+
 p_adj <- p.adjust(p_value, method = "bonferroni")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5) ASSEMBLE RESULTS INTO A DATA FRAME
+# 6) ASSEMBLE RESULTS INTO A DATA FRAME
 # ─────────────────────────────────────────────────────────────────────────────
-de_results <- tibble(
-  gene     = gene_ids,
-  log2FC   = log2FC,
-  p_value  = p_value,
-  p_adj    = p_adj
+
+de_results_cn <- tibble(
+  gene    = gene_ids,
+  log2FC  = log2FC,
+  p_value = p_value,
+  p_adj   = p_adj
 ) %>%
-  arrange(p_adj)      # sorted by smallest adjusted p‐value first
+  arrange(p_adj)   # sorted by smallest adjusted p-value first
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6) OPTIONAL: SAVE TO CSV
+# 7) SAVE TO CSV
 # ─────────────────────────────────────────────────────────────────────────────
-write_csv(de_results, "./2_recurrence.classifier/output/4_RvsN/DE_RvsN_log2TPM_ttest.csv")
+
+write_csv(
+  de_results_cn,
+  "./1_bc.classifier/output/3_bcvsnormal/DE_CancervsNormal_log2TPM_ttest.csv"
+)
 
