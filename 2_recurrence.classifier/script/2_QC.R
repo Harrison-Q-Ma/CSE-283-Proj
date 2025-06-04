@@ -54,3 +54,24 @@ readcount_filtered <- readcount%>%filter(V1 %in% qc_filtered$GeneID)%>%column_to
 write.csv(log_tpm, "./2_recurrence.classifier/output/2_QC/pnas_tpm_96_nodup_normalized.csv", row.names = T)
 write.csv(log_tpm_filtered, "./2_recurrence.classifier/output/2_QC/pnas_tpm_96_nodup_normalized_filtered.csv", row.names = T)
 write.csv(readcount_filtered, "./2_recurrence.classifier/output/2_QC/pnas_readcounts_96_nodup_filtered.csv", row.names = T)
+
+
+# 5 distribution of TPM
+tpm <- tpm %>%
+  as.data.frame() %>%             # convert matrix → data.frame
+  rownames_to_column(var = "gene_id") %>% 
+  pivot_longer(
+    cols      = -gene_id,
+    names_to  = "sample_id",
+    values_to = "expr_value"
+  )
+
+ggplot(tpm, aes(x = log2(expr_value+1))) +
+  geom_histogram(binwidth = 0.2, color = "black") +
+  labs(
+    title = "Histogram of All Expression Values",
+    x = "log2(TPM+1)",
+    y = "Count"
+  ) +
+  theme_minimal(base_size = 14)
+
