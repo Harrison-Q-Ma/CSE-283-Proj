@@ -104,3 +104,20 @@ write_csv(
   "./1_bc.classifier/output/3_bcvsnormal/DE_CancervsNormal_log2TPM_ttest.csv"
 )
 
+de_results_cn<- read.csv("./1_bc.classifier/output/3_bcvsnormal/DE_CancervsNormal_log2TPM_ttest.csv")
+symbols <- mapIds(org.Hs.eg.db, keys = ens,
+                  column = c('SYMBOL'), keytype = 'ENSEMBL')
+symbols <- symbols[!is.na(symbols)]
+symbols <- symbols[match(rownames(airway), names(symbols))]
+
+library(EnhancedVolcano)
+EnhancedVolcano(de_results_cn, 
+                NA,
+                x ="log2FC", 
+                y ="p_adj",
+                FCcutoff=1,
+                pCutoff = 0.05)
+
+ggsave(paste0("./1_bc.classifier/output/3_bcvsnormal/volcano.png"),width=6, height=10, limitsize = FALSE)
+de_results_cn%>%filter(log2FC>1 & p_adj<0.05)%>%dim()
+

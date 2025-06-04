@@ -34,4 +34,30 @@ top_hvgs <- hvg_ranked %>%
 write_csv(hvg_ranked,"./2_recurrence.classifier/output/HVG_stats_all_genes_filtered.csv")
 write_csv(hvg_ranked %>% slice(1:top_n),
           glue::glue("./2_recurrence.classifier/output/top_{top_n}_HVGs.csv"))
+hvg_ranked$category<-case_when(hvg_ranked$cv2>=14.32987 ~ "Highly Variable Genes",
+                               TRUE ~ "other genes")
 
+library(ggplot2)
+
+ggplot(hvg_ranked, aes(x = avg_expr, y = cv2, color = category)) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  # Draw a horizontal line at log2(14.32987) to show the cutoff
+  #geom_hline(yintercept = log2(14.32987), linetype = "dashed", color = "red") +
+  # Force specific colors for the two categories
+  scale_color_manual(
+    values = c("Other Genes" = "grey70",
+               "Highly Variable Genes" = "black")
+  ) +
+  labs(
+    x     = "Average expression", 
+    y     = "dispersions of genes", 
+    color = ""
+  ) +
+  xlim(0,500)+
+  theme_classic(base_size = 12) +
+  theme(
+    #legend.position = c(0.85, 0.85),
+    #legend.background = element_rect(fill = "white", color = "grey80"),
+    panel.grid.major = element_line(color = "grey90", size = 0.3),
+    panel.grid.minor = element_blank()
+  )

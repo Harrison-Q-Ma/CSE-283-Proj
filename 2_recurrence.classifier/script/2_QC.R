@@ -16,7 +16,7 @@ tpm <- tpm[,-1]
 # 2) Call detected where TPM > 5
 detected <- tpm > 5
 
-# 3) Compute detection frequency per gene
+# 3a) Compute detection frequency per gene
 detection_freq <- rowSums(detected) / ncol(tpm)
 
 # Build QC table
@@ -27,6 +27,18 @@ qc <- data.frame(
   stringsAsFactors = FALSE
 )
 
+# 3b) Compute detection frequency per sample
+detection_freq_sample <- colSums(detected) / nrow(tpm)
+
+# Build QC table
+qc_sample <- data.frame(
+  SampleID = colnames(tpm),
+  DetectionFrequency = detection_freq_sample,
+  row.names = NULL,
+  stringsAsFactors = FALSE
+)
+
+
 # 4a) Filter genes with freq ≥ 0.1
 min_freq <- 0.1
 qc_filtered <- subset(qc, DetectionFrequency >= min_freq)
@@ -34,6 +46,7 @@ qc_filtered <- subset(qc, DetectionFrequency >= min_freq)
 # 4b) Write out results
 write.csv(qc, "./2_recurrence.classifier/output/2_QC/exRNA_detection_frequency_all_genes.csv", row.names = T)
 write.csv(qc_filtered, "./2_recurrence.classifier/output/2_QC/exRNA_detection_frequency_filtered.csv", row.names = T)
+write.csv(qc_sample, "./2_recurrence.classifier/output/2_QC/exRNA_detection_frequency_all_samples.csv", row.names = T)
 
 log_tpm <- log2(tpm + 1)
 log_tpm_filtered <- log_tpm%>%rownames_to_column("gene_id")%>%filter(gene_id %in% qc_filtered$GeneID)%>%column_to_rownames("gene_id")

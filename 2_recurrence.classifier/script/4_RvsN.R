@@ -80,3 +80,14 @@ de_results <- tibble(
 # ─────────────────────────────────────────────────────────────────────────────
 write_csv(de_results, "./2_recurrence.classifier/output/4_RvsN/DE_RvsN_log2TPM_ttest.csv")
 
+de_results<- read.csv("./2_recurrence.classifier/output/4_RvsN/DE_RvsN_log2TPM_ttest.csv")
+library(EnhancedVolcano)
+EnhancedVolcano(de_results, 
+                de_results$gene,
+                x ="log2FC", 
+                y ="p_adj",
+                FCcutoff=1,
+                pCutoff = 0.05)
+
+ggsave(paste0("./2_recurrence.classifier/output/4_RvsN/volcano.png"),width=5, height=8, limitsize = FALSE)
+de_results%>%filter(log2FC< -1)%>%dim
