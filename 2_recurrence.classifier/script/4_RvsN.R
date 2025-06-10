@@ -81,13 +81,36 @@ de_results <- tibble(
 write_csv(de_results, "./2_recurrence.classifier/output/4_RvsN/DE_RvsN_log2TPM_ttest.csv")
 
 de_results<- read.csv("./2_recurrence.classifier/output/4_RvsN/DE_RvsN_log2TPM_ttest.csv")
+ensembl_ids<- de_results%>%.[,1]
+
+
+library(biomaRt)
+
+# Connect to Ensembl (human GRCh38)
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+
+# Query Ensembl for HGNC symbol (and biotype, if desired)
+annotations <- getBM(
+  filters    = "ensembl_gene_id",
+  attributes = c("ensembl_gene_id", "hgnc_symbol", "gene_biotype"),
+  values     = ensembl_ids,
+  mart       = ensembl
+)
+
+de_results <-merge(x=de_results,y=annotations,by.x="gene",by.y="ensembl_gene_id",all.x = T)
 library(EnhancedVolcano)
 EnhancedVolcano(de_results, 
-                de_results$gene,
+                #NA,
+                de_results$hgnc_symbol,
                 x ="log2FC", 
                 y ="p_adj",
                 FCcutoff=1,
-                pCutoff = 0.05)
+                pCutoff = 0.05)+ coord_flip()
 
-ggsave(paste0("./2_recurrence.classifier/output/4_RvsN/volcano.png"),width=5, height=8, limitsize = FALSE)
+
+
+ggsave(paste0("./2_recurrence.classifier/output/4_RvsN/volcano.png"),width=10, height=6, limitsize = FALSE)
 de_results%>%filter(log2FC< -1)%>%dim
+
+

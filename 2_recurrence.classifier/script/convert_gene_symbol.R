@@ -25,16 +25,11 @@ ensembl_ids <- c(
   "ENSG00000274770", "ENSG00000234521", "ENSG00000258595", "ENSG00000255336"
 )
 
+ensembl_ids<- de_results_cn%>%filter(log2FC>1 & p_adj<0.05)%>%.[,1]
 # Remove duplicates to get a unique set
 ensembl_ids <- unique(ensembl_ids)
 ensembl_ids
 
-
-# Install and load biomaRt if not already installed
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
-}
-BiocManager::install("biomaRt", update = FALSE, ask = FALSE)
 library(biomaRt)
 
 # Connect to Ensembl (human GRCh38)
@@ -49,5 +44,30 @@ annotations <- getBM(
   mart       = ensembl
 )
 
-# Display the mapping
-print(annotations)
+library(tidyverse)
+
+table(annotations$gene_biotype) %>% 
+  as.data.frame() %>% 
+  rename(biotype = Var1, count = Freq) %>% 
+  mutate(
+    percent = count / sum(count) * 100,
+    full_label = paste0(biotype, "\n", round(percent, 1), "%"),
+    # only keep label if slice ≥ 3%
+    plot_label = ifelse(percent >= 3, full_label, NA_character_)
+  ) %>% 
+  ggplot(aes(x = "", y = count, fill = biotype)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y", start = 0) +
+  geom_text(aes(label = plot_label),
+            position      = position_stack(vjust = 0.5),
+            size          = 3,
+            check_overlap = F) +
+  theme_void(base_size = 14) +
+  labs(
+    title = "Gene biotype distribution for 2000 HVGs found in cancer samples",
+    fill  = "Gene Biotype"
+  ) +
+  theme(
+    plot.title      = element_text(hjust = 0.5),
+    legend.position = "right"
+  )

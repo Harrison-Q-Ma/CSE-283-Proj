@@ -105,19 +105,35 @@ write_csv(
 )
 
 de_results_cn<- read.csv("./1_bc.classifier/output/3_bcvsnormal/DE_CancervsNormal_log2TPM_ttest.csv")
-symbols <- mapIds(org.Hs.eg.db, keys = ens,
-                  column = c('SYMBOL'), keytype = 'ENSEMBL')
-symbols <- symbols[!is.na(symbols)]
-symbols <- symbols[match(rownames(airway), names(symbols))]
 
+ensembl_ids<- de_results_cn%>%.[,1]
+
+
+library(biomaRt)
+
+# Connect to Ensembl (human GRCh38)
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+
+# Query Ensembl for HGNC symbol (and biotype, if desired)
+annotations <- getBM(
+  filters    = "ensembl_gene_id",
+  attributes = c("ensembl_gene_id", "hgnc_symbol", "gene_biotype"),
+  values     = ensembl_ids,
+  mart       = ensembl
+)
+
+de_results_cn <-merge(x=de_results_cn,y=annotations,by.x="gene",by.y="ensembl_gene_id",all.x = T)
 library(EnhancedVolcano)
 EnhancedVolcano(de_results_cn, 
-                NA,
+                #NA,
+                de_results_cn$hgnc_symbol,
                 x ="log2FC", 
                 y ="p_adj",
                 FCcutoff=1,
-                pCutoff = 0.05)
+                pCutoff = 0.05)+ coord_flip()
 
-ggsave(paste0("./1_bc.classifier/output/3_bcvsnormal/volcano.png"),width=6, height=10, limitsize = FALSE)
+
+ggsave(paste0("./1_bc.classifier/output/3_bcvsnormal/volcano.png"),width=10, height=6, limitsize = FALSE)
 de_results_cn%>%filter(log2FC>1 & p_adj<0.05)%>%dim()
 
